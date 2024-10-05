@@ -10,8 +10,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import com.example.snapit.Adapter.ImageAdapter
-import com.example.snapit.Datastore.UserDataClass
 import com.example.snapit.Datastore.UserDataHolder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
