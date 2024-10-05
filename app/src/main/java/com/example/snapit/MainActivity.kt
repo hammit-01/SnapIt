@@ -46,6 +46,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // test
+
         // 현재 사용자 가져오기
         val currentUser = auth.currentUser
         if (currentUser != null) {
