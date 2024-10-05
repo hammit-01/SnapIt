@@ -1,10 +1,12 @@
 package com.example.snapit.Datastore
 
 data class UserDataClass(
-    val id: String,
-    val pwd: String,
+    val uid: String,
     val name: String,
-    val nick_name: String,
+    var nick_name: String,
     val b_day: String,
-    val comment: String
+    var comment: String,
+    val imgNum: Int,
+    val videoNum: Int,
+    var profile: String? = null
 )

@@ -16,6 +16,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import com.example.snapit.Adapter.ImageAdapter
 import com.example.snapit.Adapter.VideoAdapter
+import com.example.snapit.Datastore.UserDataClass
+import com.example.snapit.Datastore.UserDataHolder
 import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : AppCompatActivity() {
@@ -23,12 +25,6 @@ class MainActivity : AppCompatActivity() {
     private val db = FirebaseFirestore.getInstance()
     // FirebaseAuth 인스턴스 초기화
     private var auth = FirebaseAuth.getInstance()
-
-    // 사용자 UID 확인
-    private lateinit var name: TextView
-    private lateinit var comment: TextView
-    private lateinit var pic_num: TextView
-    private lateinit var video_num: TextView
 
     private lateinit var logout: Button
     private lateinit var editprofile: Button
@@ -124,7 +120,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             // 사용자가 로그인을 하지 않았을 때 보여지는 튜토리얼 화면
             setContentView(R.layout.tutorial_layout)
-
 
             // 로그인 버튼
             login = findViewById(R.id.login)
@@ -230,6 +225,12 @@ class MainActivity : AppCompatActivity() {
                         .load(uri)
                         .into(imageView)
 
+                    // 기존 데이터 가져오기
+                    val existingUserData = UserDataHolder.userData
+
+                    // imageUrl 업데이트
+                    existingUserData?.profile = uri.toString()
+
                     Log.d("MainActivity", "Image loaded successfully")
                 }.addOnFailureListener { exception ->
                     Log.e("MainActivity", "Error getting image URL", exception)
@@ -264,9 +265,11 @@ class MainActivity : AppCompatActivity() {
                         val nickName = document.getString("nick_name") ?: ""
                         val comment = document.getString("comment") ?: ""
                         val bDay = document.getString("b_day") ?: ""
-                        val id = document.getString("id") ?: ""
                         val imgNum = document.getLong("img_num") ?: 0
                         val videoNum = document.getLong("video_num") ?: 0
+
+                        val user_data = UserDataClass(userId, name, nickName, bDay, comment, imgNum.toInt(), videoNum.toInt())
+                        UserDataHolder.userData = user_data
 
                         // TextView에 데이터를 표시
                         val nickNameTextView = findViewById<TextView>(R.id.nickname)
@@ -281,6 +284,8 @@ class MainActivity : AppCompatActivity() {
 
                     } else {
                         // 문서가 없을 경우 처리
+                        val user_data = UserDataClass(userId, "", "", "", "", 0, 0)
+                        UserDataHolder.userData = user_data
                         showError("No such document")
                     }
                 }
