@@ -5,17 +5,22 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import com.example.snapit.Adapter.ImageAdapter
 import com.example.snapit.Adapter.VideoAdapter
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : AppCompatActivity() {
+    // Firestore 인스턴스 초기화
+    private val db = FirebaseFirestore.getInstance()
     // FirebaseAuth 인스턴스 초기화
     private var auth = FirebaseAuth.getInstance()
 
@@ -41,12 +46,12 @@ class MainActivity : AppCompatActivity() {
     private val imageUrls = mutableListOf<String>()
     private val videoUrls = mutableListOf<String>()
 
+    private lateinit var imageView: ImageView
+
     // Firebase 사용자 uid 관련
     private lateinit var sharedPreferences: SharedPreferences
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // test
 
         // 현재 사용자 가져오기
         val currentUser = auth.currentUser
@@ -60,13 +65,13 @@ class MainActivity : AppCompatActivity() {
             // 사진, 동영상 개수 표시
             // Todo 이미지와 동영상 버튼을 눌러야 firebase로부터 데이터 개수를 구해버려서 초기에는 뜨지가 않음
             // Todo 차라리 사용자 정보에 사진 개수와 동영상 개수를 등록해 거기서 데이터를 빼오는게 나을 것 같음
-            name = findViewById(R.id.name)
-            comment = findViewById(R.id.comment)
-            pic_num = findViewById(R.id.pic_num)
-            video_num = findViewById(R.id.video_num)
-
 
             initialRecyclerView("imageType", userUid.toString())
+
+            readPosts()
+
+            imageView = findViewById(R.id.imageView)
+            fetchProfileFromFirebase(userUid.toString(), imageView)
 
             // 로그아웃 버튼
             logout = findViewById(R.id.logout)
@@ -137,6 +142,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // 리싸이클러뷰 초기화, 어뎁터 설정 함수
     private fun initialRecyclerView(type: String, uid: String) {
         // RecyclerView 초기화
         recyclerView = findViewById(R.id.recyclerview)
@@ -146,49 +152,35 @@ class MainActivity : AppCompatActivity() {
         recyclerView.layoutManager = staggeredGridLayoutManager
         recyclerView.setHasFixedSize(true)
 
-        if (type == "imageType") {
-            // 어댑터 설정
-            imageAdapter = ImageAdapter(this, imageUrls)
-            recyclerView.adapter = imageAdapter
-
-            // Firebase에서 이미지 가져오기
-            if (uid != null) {
+        when (type) {
+            "imageType" -> {
+                // 어댑터 설정
+                imageAdapter = ImageAdapter(this, imageUrls)
+                recyclerView.adapter = imageAdapter
                 fetchImagesFromFirebase(uid)
             }
-        } else if (type == "videoType") {
-            // 어댑터 설정
-            videoAdapter = VideoAdapter(this, videoUrls)
-            recyclerView.adapter = videoAdapter
-
-            // Firebase에서 동영상 가져오기
-            if (uid != null) {
+            "videoType" -> {
+                // 어댑터 설정
+                videoAdapter = VideoAdapter(this, videoUrls)
+                recyclerView.adapter = videoAdapter
                 fetchVideosFromFirebase(uid)
-            }
+            } else -> Toast.makeText(this, "함수 오류", Toast.LENGTH_LONG).show()
         }
     }
 
+    // firestore에서 이미지 가져오기
     private fun fetchImagesFromFirebase(userUid: String) {
         val storageReference = FirebaseStorage.getInstance().reference.child("images/$userUid/")
 
         // Firebase Storage에서 이미지 리스트 가져오기
         storageReference.listAll().addOnSuccessListener { listResult ->
-            val totalItems = listResult.items.size // 총 이미지 개수
-            var loadedItems = 0 // 로드된 이미지 개수 추적
-
             for (fileRef in listResult.items) {
                 fileRef.downloadUrl.addOnSuccessListener { uri ->
                     // 각 이미지의 URL을 리스트에 추가
                     imageUrls.add(uri.toString())
-                    loadedItems++
 
                     // 어댑터에 데이터 변경 알림
                     imageAdapter.notifyDataSetChanged()
-
-                    // 모든 이미지를 다 로드했을 때 사진 개수 반환
-                    if (loadedItems == totalItems) {
-                        val num = imageAdapter.itemCount.toString()
-                        pic_num.text = num
-                    }
                 }.addOnFailureListener { exception ->
                     Log.e("MainActivity", "Error getting image URL", exception)
                 }
@@ -198,35 +190,107 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
+    // firestore에서 동영상 가져오기
     private fun fetchVideosFromFirebase(userUid: String) {
         val storageReference = FirebaseStorage.getInstance().reference.child("videos/$userUid/")
 
         // Firebase Storage에서 동영상 리스트 가져오기
         storageReference.listAll().addOnSuccessListener { listResult ->
-            val totalItems = listResult.items.size // 총 이미지 개수
-            var loadedItems = 0 // 로드된 이미지 개수 추적
-
             for (fileRef in listResult.items) {
                 fileRef.downloadUrl.addOnSuccessListener { uri ->
                     // 각 동영상의 URL을 리스트에 추가
                     videoUrls.add(uri.toString())
-                    loadedItems++
 
                     // 어댑터에 데이터 변경 알림
                     videoAdapter.notifyDataSetChanged()
-
-                    // 모든 이미지를 다 로드했을 때 사진 개수 반환
-                    if (loadedItems == totalItems) {
-                        val num = videoAdapter.itemCount.toString()
-                        video_num.text = num
-                    }
                 }.addOnFailureListener { exception ->
                     Log.e("MainActivity", "Error getting image URL", exception)
                 }
             }
         }.addOnFailureListener { exception ->
             Log.e("MainActivity", "Error listing files", exception)
+        }
+    }
+
+    // firestore에서 사용자 프로필 가져오기
+    private fun fetchProfileFromFirebase(userUid: String, imageView: ImageView) {
+        // Firebase Storage 참조
+        val storageReference = FirebaseStorage.getInstance().reference.child("profiles/$userUid/")
+
+        // 폴더 내의 파일들 리스트 가져오기
+        storageReference.listAll().addOnSuccessListener { listResult ->
+            if (listResult.items.isNotEmpty()) {
+                // 첫 번째 파일 참조 (이미지는 하나만 있다고 가정)
+                val fileRef = listResult.items[0]
+
+                // 파일의 다운로드 URL 가져오기
+                fileRef.downloadUrl.addOnSuccessListener { uri ->
+                    // Glide를 사용하여 이미지 URL을 ImageView에 로드
+                    Glide.with(this)
+                        .load(uri)
+                        .into(imageView)
+
+                    Log.d("MainActivity", "Image loaded successfully")
+                }.addOnFailureListener { exception ->
+                    Log.e("MainActivity", "Error getting image URL", exception)
+                }
+            } else {
+                Log.e("MainActivity", "No files found in the folder")
+            }
+        }.addOnFailureListener { exception ->
+            Log.e("MainActivity", "Error listing files in the folder", exception)
+        }
+    }
+
+    // 오류 메시지 표시 함수
+    private fun showError(message: String) {
+        // 간단한 Toast 메시지로 오류 표시
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    // 사용자 정보 읽기 함수
+    private fun readPosts() {
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val userId = currentUser.uid
+
+            // Firestore의 users_data 컬렉션에서 사용자 문서 가져오기
+            db.collection("users_data").document(userId)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null) {
+                        // Firestore에서 가져온 데이터
+                        val name = document.getString("name") ?: ""
+                        val nickName = document.getString("nick_name") ?: ""
+                        val comment = document.getString("comment") ?: ""
+                        val bDay = document.getString("b_day") ?: ""
+                        val id = document.getString("id") ?: ""
+                        val imgNum = document.getLong("img_num") ?: 0
+                        val videoNum = document.getLong("video_num") ?: 0
+
+                        // TextView에 데이터를 표시
+                        val nickNameTextView = findViewById<TextView>(R.id.nickname)
+                        val commentTextView = findViewById<TextView>(R.id.comment)
+                        val imgNumTextView = findViewById<TextView>(R.id.pic_num)
+                        val videoNumTextView = findViewById<TextView>(R.id.video_num)
+
+                        nickNameTextView.text = nickName
+                        commentTextView.text = comment
+                        imgNumTextView.text = imgNum.toString()
+                        videoNumTextView.text = videoNum.toString()
+
+                    } else {
+                        // 문서가 없을 경우 처리
+                        showError("No such document")
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    // 오류 처리
+                    showError("Failed to fetch data: ${exception.message}")
+                }
+        } else {
+            // 사용자 로그인 정보가 없을 때 처리
+            showError("User not logged in")
         }
     }
 }
