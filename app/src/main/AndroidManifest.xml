@@ -17,6 +17,7 @@
         <activity android:name=".UserActivity"></activity>
         <activity android:name=".EditProfileActivity"></activity>
         <activity android:name=".VideoPlayerActivity"></activity>
+        <activity android:name="AddQrActivity"></activity>
         <activity
             android:name=".MainActivity"
             android:exported="true">

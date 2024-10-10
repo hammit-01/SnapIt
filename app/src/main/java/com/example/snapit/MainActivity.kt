@@ -59,15 +59,12 @@ class MainActivity : AppCompatActivity() {
             sharedPreferences = getSharedPreferences("MyPrefs", MODE_PRIVATE)
             val userUid = sharedPreferences.getString("userUid", null)
             // 사진, 동영상 개수 표시
-            // Todo 이미지와 동영상 버튼을 눌러야 firebase로부터 데이터 개수를 구해버려서 초기에는 뜨지가 않음
-            // Todo 차라리 사용자 정보에 사진 개수와 동영상 개수를 등록해 거기서 데이터를 빼오는게 나을 것 같음
 
             initialRecyclerView("imageType", userUid.toString())
 
-            readPosts()
-
             imageView = findViewById(R.id.imageView)
             fetchProfileFromFirebase(userUid.toString(), imageView)
+            readPosts()
 
             // 로그아웃 버튼
             logout = findViewById(R.id.logout)
@@ -104,6 +101,7 @@ class MainActivity : AppCompatActivity() {
             add_qr = findViewById(R.id.add_qr)
             add_qr.setOnClickListener {
                 // Todo QR 추가 화면 전환(카메라 앱 실행 후 로직 실행)
+                startActivity(Intent(this, AddQrActivity::class.java))
             }
 
             // 리싸이클러 뷰 비디오 화면 전환 버튼
